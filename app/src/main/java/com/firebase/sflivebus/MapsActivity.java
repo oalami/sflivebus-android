@@ -2,6 +2,7 @@ package com.firebase.sflivebus;
 
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.util.Log;
 
 import com.firebase.client.ChildEventListener;
 import com.firebase.client.DataSnapshot;
@@ -20,10 +21,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class MapsActivity extends FragmentActivity {
+    private static final String TAG = "MapsActivity";
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private HashMap<String, Marker> vehicleMarkerMap = new HashMap<String, Marker>();
-    private Firebase ref;
     private LatLngInterpolator interpolator = new LatLngInterpolator.Linear();
 
     @Override
@@ -31,12 +32,23 @@ public class MapsActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
         setUpMapIfNeeded();
+        setupFirebase();
+
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Firebase.goOffline();
+
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
+        Firebase.goOnline();
     }
 
     /**
@@ -63,19 +75,22 @@ public class MapsActivity extends FragmentActivity {
             // Check if we were successful in obtaining the map.
             if (mMap != null) {
                 setUpMap();
-                setupFirebase();
             }
         }
     }
 
     private void setupFirebase() {
         Firebase.setAndroidContext(this);
-        ref = new Firebase("https://publicdata-transit.firebaseio.com/sf-muni");
+        Firebase ref = new Firebase("https://publicdata-transit.firebaseio.com/sf-muni");
 
         ref.child("vehicles").addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                //do nothing
+                Map vehicle = dataSnapshot.getValue(Map.class);
+
+                addRoute(dataSnapshot.getName(),
+                        (String) vehicle.get("routeTag"),
+                        new LatLng((Double) vehicle.get("lat"), (Double) vehicle.get("lon")));
             }
 
             @Override
@@ -83,16 +98,10 @@ public class MapsActivity extends FragmentActivity {
                 Marker m = vehicleMarkerMap.get(dataSnapshot.getName());
 
                 if(m != null) {
-                    Map vehicle = dataSnapshot.getValue(Map.class);
+                    Double lat = dataSnapshot.child("lat").getValue(Double.class);
+                    Double lon = dataSnapshot.child("lon").getValue(Double.class);
 
-                    MarkerAnimation.animateMarkerToICS(m,
-                            new LatLng((Double)vehicle.get("lat"), (Double)vehicle.get("lon")),
-                            interpolator);
-                } else {
-                    Map vehicle = dataSnapshot.getValue(Map.class);
-                    addRoute(dataSnapshot.getName(),
-                            (String) vehicle.get("routeTag"),
-                            new LatLng((Double) vehicle.get("lat"), (Double) vehicle.get("lon")));
+                    MarkerAnimation.animateMarkerToICS(m, new LatLng(lat, lon), interpolator);
                 }
             }
 
@@ -102,7 +111,9 @@ public class MapsActivity extends FragmentActivity {
 
                 if(m != null) {
                     m.remove();
+                    vehicleMarkerMap.remove(dataSnapshot.getName());
                 }
+
             }
 
             @Override
@@ -128,24 +139,8 @@ public class MapsActivity extends FragmentActivity {
 
     }
 
-    /**
-     * This is where we can add markers or lines, add listeners or move the camera. In this case, we
-     * just add a marker near Africa.
-     * <p>
-     * This should only be called once and when we are sure that {@link #mMap} is not null.
-     */
     private void setUpMap() {
-//        mMap.moveCamera(CameraUpdateFactory.newLatLngBounds(
-//                new LatLngBounds(
-//                        new LatLng(37.70977, -122.51692),
-//                        new LatLng(37.83569, -122.36654)),0));
         mMap.moveCamera(CameraUpdateFactory.newCameraPosition(new CameraPosition(
-                new LatLng(37.75771992816863, -122.43760000000003), 13, 0, 0)));
-//
-//        mMap.addMarker(new MarkerOptions().position(new LatLng(0, 0)).title("Marker"));
+                new LatLng(37.757719, -122.4376), 12, 0, 0)));
     }
-
-
-
-
 }

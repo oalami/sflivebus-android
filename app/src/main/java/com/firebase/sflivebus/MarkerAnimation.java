@@ -62,7 +62,7 @@ public class MarkerAnimation {
             }
         });
         valueAnimator.setFloatValues(0, 1); // Ignored.
-        valueAnimator.setDuration(3000);
+        valueAnimator.setDuration(6000);
         valueAnimator.start();
     }
 
